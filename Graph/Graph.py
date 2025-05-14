@@ -179,7 +179,8 @@ def main_window():
     canvas.pack()
 
     root.mainloop()
-
+    
+#Приветственное окно
 hello = tk.Tk()
 hello.title("Программа по расчету максимального потока в графе")
 hello.geometry("600x400")
