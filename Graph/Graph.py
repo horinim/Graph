@@ -2,142 +2,203 @@ import tkinter as tk
 from tkinter import messagebox
 from collections import defaultdict
 import numpy
+import random
 
-class MaxFlow:
-    def __init__(self, vertices):
-        self.V = vertices  # Количество вершин
-        self.graph = defaultdict(lambda: defaultdict(int))  # Граф
+def main_window():
+    hello.destroy()
+    
+    class MaxFlow:
+        
+        def __init__(self, vertices):
+            self.V = vertices  # Количество вершин
+            self.graph = defaultdict(lambda: defaultdict(int))  # Граф
 
-    def add_edge(self, u, v, capacity):
-        self.graph[u][v] += capacity  # Добавляем ребро с заданной пропускной способностью
+        def add_edge(self, u, v, capacity):
+            self.graph[u][v] += capacity  # Добавляем ребро с заданной пропускной способностью
 
-    def bfs(self, source, sink, parent):
-        visited = set()
-        queue = [source]
-        visited.add(source)
+        def bfs(self, source, sink, parent):
+            visited = set()
+            queue = [source]
+            visited.add(source)
 
-        while queue:
-            u = queue.pop(0)
+            while queue:
+                u = queue.pop(0)
 
-            for v in self.graph[u]:
-                if v not in visited and self.graph[u][v] > 0:  # Если не посещена и есть доступная пропускная способность
-                    visited.add(v)
-                    parent[v] = u
-                    if v == sink:
-                        return True
-                    queue.append(v)
-        return False
+                for v in self.graph[u]:
+                    if v not in visited and self.graph[u][v] > 0:  # Если не посещена и есть доступная пропускная способность
+                        visited.add(v)
+                        parent[v] = u
+                        if v == sink:
+                            return True
+                        queue.append(v)
+            return False
 
-    def ford_fulkerson(self, source, sink):
-        parent = {}
-        max_flow = 0
+        def ford_fulkerson(self, source, sink):
+            parent = {}
+            max_flow = 0
+            max_flow_path = []  # Список для хранения рёбер максимального потока
 
-        while self.bfs(source, sink, parent):
-            path_flow = float('Inf')
-            s = sink
+            while self.bfs(source, sink, parent):
+                path_flow = float('Inf')
+                s = sink
 
-            while s != source:
-                path_flow = min(path_flow, self.graph[parent[s]][s])
-                s = parent[s]
+                # Запоминаем путь
+                current_path = []
 
-            # Обновляем остаточные пропускные способности рёбер
-            v = sink
-            while v != source:
-                u = parent[v]
-                self.graph[u][v] -= path_flow
-                self.graph[v][u] += path_flow
-                v = parent[v]
+                while s != source:
+                    current_path.append((parent[s], s))  # Сохраняем ребро в пути
+                    path_flow = min(path_flow, self.graph[parent[s]][s])
+                    s = parent[s]
 
-            max_flow += path_flow
+                # Обновляем остаточные пропускные способности рёбер
+                v = sink
+                while v != source:
+                    u = parent[v]
+                    self.graph[u][v] -= path_flow
+                    self.graph[v][u] += path_flow
+                    v = parent[v]
 
-        return max_flow
+                max_flow += path_flow
+                max_flow_path = current_path  # Обновляем путь максимального потока
 
-def draw_graph(edges, num_vertices):
-    canvas.delete("all")  # Очистка холста
-    node_positions = {}  # Словарь для хранения позиций вершин
-    node_radius = 15  # Радиус вершины
+            return max_flow, max_flow_path  # Возвращаем максимальный поток и путь
 
-    # Определяем позиции для вершин
-    for i in range(num_vertices):
-        angle = i * (360 / num_vertices)
-        x = 200 + 100 * numpy.cos(numpy.radians(angle))
-        y = 200 + 100 * numpy.sin(numpy.radians(angle))
-        node_positions[i] = (x, y)
-        canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill="lightblue")
-        canvas.create_text(x, y, text=str(i + 1))  # Вершины начинаются с 1
+    def draw_graph(edges, num_vertices, max_flow_path=None):
+        canvas.delete("all")
+        node_positions = {}
+        node_radius = 15
+        offset_range = 35
 
-    # Рисуем рёбра
-    for edge in edges:
-        u, v, capacity = edge
-        x1, y1 = node_positions[u - 1]
-        x2, y2 = node_positions[v - 1]
+        # Определяем позиции для вершин с небольшим смещением
+        for i in range(num_vertices):
+            angle = i * (360 / num_vertices)
+            x = 200 + 100 * numpy.cos(numpy.radians(angle)) + random.uniform(-offset_range, offset_range)
+            y = 200 + 100 * numpy.sin(numpy.radians(angle)) + random.uniform(-offset_range, offset_range)
+            node_positions[i] = (x, y)
+            canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill="lightblue")
+            canvas.create_text(x, y, text=str(i + 1))  # Вершины начинаются с 1
 
-        # Вычисляем направление вектора
-        dx = x2 - x1
-        dy = y2 - y1
-        length = (dx**2 + dy**2)**0.5
-
-        # Нормализуем вектор и добавляем смещение
-        if length > 0:
-            dx /= length
-            dy /= length
-
-        # Смещаем координаты конца стрелок
-        x1_end = x1 + dx * node_radius
-        y1_end = y1 + dy * node_radius
-        x2_end = x2 - dx * node_radius
-        y2_end = y2 - dy * node_radius
-
-        # Рисуем линию с стрелкой
-        canvas.create_line(x1_end, y1_end, x2_end, y2_end, arrow=tk.LAST)
-        mid_x = (x1_end + x2_end) / 2
-        mid_y = (y1_end + y2_end) / 2
-        canvas.create_text(mid_x, mid_y, text=str(capacity))
-
-def calculate_max_flow():
-    try:
-        num_vertices = int(vertex_entry.get())
-        edges = edge_entry.get("1.0", "end").strip().splitlines()
-        edge_list = []
-
-        max_flow_calculator = MaxFlow(num_vertices)
-
+        # Рисуем рёбра
         for edge in edges:
-            u, v, capacity = map(int, edge.split())
-            max_flow_calculator.add_edge(u - 1, v - 1, capacity)  # Преобразуем в 0-индексацию
-            edge_list.append((u, v, capacity))
+            u, v, capacity = edge
+            x1, y1 = node_positions[u - 1]
+            x2, y2 = node_positions[v - 1]
 
-        source = 0  # Исток (вершина 1)
-        sink = num_vertices - 1  # Сток (последняя вершина)
-        max_flow = max_flow_calculator.ford_fulkerson(source, sink)
+            dx = x2 - x1
+            dy = y2 - y1
+            length = (dx ** 2 + dy ** 2) ** 0.5
 
-        messagebox.showinfo("Результат", f"Максимальный поток равен: {max_flow}")
-        draw_graph(edge_list, num_vertices)  # Передаем количество вершин в draw_graph
-    except ValueError:
-        messagebox.showerror("Ошибка", "Введите корректные числа!")
-    except IndexError:
-        messagebox.showerror("Ошибка", "Проверьте вводимые данные о рёбрах!")
+            if length > 0:
+                dx /= length
+                dy /= length
 
-# Создание основного окна
-root = tk.Tk()
-root.title("Максимальный поток")
+            # Смещаем координаты конца стрелок
+            x1_end = x1 + dx * node_radius
+            y1_end = y1 + dy * node_radius
+            x2_end = x2 - dx * node_radius
+            y2_end = y2 - dy * node_radius
 
-# Поля для ввода
-tk.Label(root, text="Количество вершин:").pack()
-vertex_entry = tk.Entry(root)
-vertex_entry.pack()
+            # Проверяем, является ли это ребро частью пути максимального потока
+            if max_flow_path and (u - 1, v - 1) in max_flow_path:
+                color = "red"
+            else:
+                color = "black"
 
-tk.Label(root, text="Рёбра (формат: u v capacity, каждое в новой строке):").pack()
-edge_entry = tk.Text(root, height=10, width=50)
-edge_entry.pack()
+            canvas.create_line(x1_end, y1_end, x2_end, y2_end, arrow=tk.LAST, fill=color)
+            mid_x = (x1_end + x2_end) / 2
+            mid_y = (y1_end + y2_end) / 2
 
-# Кнопка для запуска расчёта
-calculate_button = tk.Button(root, text="Рассчитать максимальный поток", command=calculate_max_flow)
-calculate_button.pack()
+            text_offset = 10  # Смещение текста
+            angle = numpy.arctan2(dy, dx)  # Угол наклона ребра
 
-# Создание холста для рисования графа
-canvas = tk.Canvas(root, width=400, height=400, bg='white')
-canvas.pack()
+            if angle < numpy.pi / 2 and angle > -numpy.pi / 2:
+                mid_y -= text_offset
+            else:
+                mid_y += text_offset
 
-# Запуск основного цикла
-root.mainloop()
+            canvas.create_text(mid_x, mid_y, text=str(capacity))
+
+    def calculate_max_flow():
+        try:
+            num_vertices = int(vertex_entry.get())
+            edges = edge_entry.get("1.0", "end").strip().splitlines()
+            edge_list = []
+
+            max_flow_calculator = MaxFlow(num_vertices)
+
+            for edge in edges:
+                u, v, capacity = map(int, edge.split())
+                max_flow_calculator.add_edge(u - 1, v - 1, capacity)  # Преобразуем в 0-индексацию
+                edge_list.append((u, v, capacity))
+
+            source = 0  # Исток (вершина 1)
+            sink = num_vertices - 1  # Сток (последняя вершина)
+            max_flow, max_flow_path = max_flow_calculator.ford_fulkerson(source, sink)
+
+            messagebox.showinfo("Результат", f"Максимальный поток равен: {max_flow}")
+            draw_graph(edge_list, num_vertices, max_flow_path)  # Передаем путь максимального потока
+        except ValueError:
+            messagebox.showerror("Ошибка", "Введите корректные числа!")
+        except IndexError:
+            messagebox.showerror("Ошибка", "Проверьте вводимые данные о рёбрах!")
+
+    def show_instructions():
+        instructions = (
+            "Инструкция по использованию:\n\n"
+            "1. Введите количество вершин графа.\n"
+            "2. Введите рёбра в формате 'начальная вершина - конечная вершина - значение потока(пропускная способность)',\n"
+            "   Каждое ребро вводится с новой строки.\n"
+            "3. Нажмите кнопку 'Рассчитать максимальный поток'.\n"
+            "4. Результат будет отображён в виде сообщения.\n"
+            "5. Граф будет нарисован на экране.\n"
+            "6. Вы можете нажать расчитать поток повторно чтобы граф перерисовался."
+        )
+        messagebox.showinfo("Инструкция", instructions)
+
+    root = tk.Tk()
+    root.title("Максимальный поток")
+    root.geometry('600x800')
+
+    tk.Label(root, text="Количество вершин:", font=("Helvetica", 16), wraplength=500).pack()
+    vertex_entry = tk.Entry(root, font=("Helvetica", 16))
+    vertex_entry.pack()
+
+    tk.Label(root, text="Рёбра (формат: Нач.вер - Кон.вер - Проп.способ, каждое в новой строке):", font=("Helvetica", 16), wraplength=500).pack()
+    edge_entry = tk.Text(root, height=10, width=50, font=("Helvetica", 12))
+    edge_entry.pack()
+
+    calculate_button = tk.Button(root, text="Рассчитать максимальный поток", command=calculate_max_flow,
+                                 font=("Helvetica", 16, "bold"), fg="green")
+    calculate_button.pack()
+
+    instruction_button = tk.Button(root, text="Инструкция", command=show_instructions,
+                                 font=("Helvetica", 16, "bold"), fg="black")
+    instruction_button.pack()
+
+    canvas = tk.Canvas(root, width=400, height=400, bg='white')
+    canvas.pack()
+
+    root.mainloop()
+
+hello = tk.Tk()
+hello.title("Программа по расчету максимального потока в графе")
+hello.geometry("600x400")
+
+header = tk.Label(hello, text="\nПроект курса 2:\n\n", font=("Helvetica", 24, "bold"), fg="blue")
+header.pack()
+
+description = tk.Label(
+    hello,
+    text="Эта программа предназначена для нахождения максимального потока в графе "
+         "с использованием эффективного алгоритма Форда-Фалкерсона. "
+         "Вы сможете визуализировать процесс и понять, как работает данный алгоритм.",
+    font=("Helvetica", 16),
+    wraplength=500,
+    justify="left"
+)
+description.pack(pady=20)
+
+start_button = tk.Button(hello, text='Начать', command=main_window, font=("Helvetica", 14), bg="lightgreen")
+start_button.pack(pady=10)
+
+hello.mainloop()
